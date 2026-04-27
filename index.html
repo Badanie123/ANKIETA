@@ -11,7 +11,7 @@
         .header {background:#3498db; color:white; padding:20px; text-align:center; font-size:1.4em;}
         .content {padding:40px 30px; text-align:center;}
         label {display:block; margin:20px 0 8px; font-weight:500; text-align:left;}
-        select, input {width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; font-size:1.1em;}
+        select, input {width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; font-size:1.1em; box-sizing: border-box;}
         .radio-group {display:flex; gap:20px; justify-content:center; margin:15px 0;}
         button {margin-top:30px; padding:15px 40px; font-size:1.2em; background:#27ae60; color:white; border:none; border-radius:8px; cursor:pointer;}
         button:hover {background:#219653;}
@@ -20,7 +20,7 @@
         .spinner {border:8px solid #f3f3f3; border-top:8px solid #3498db; border-radius:50%; width:70px; height:70px; animation:spin 1s linear infinite; margin-bottom:25px;}
         @keyframes spin {0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);}}
         
-        .thank {display:none; padding:60px 40px; font-size:1.3em; line-height:1.5;}
+        .thank {display:none; padding:60px 40px; font-size:1.3em; line-height:1.5; text-align: center;}
     </style>
 </head>
 <body>
@@ -28,13 +28,18 @@
         <div id="form-container">
             <div class="header">Podstawowe dane</div>
             <div class="content">
+                <label> Kod użytkownika (2 pierwsze litery imienia + rok urodzenia):</label>
+                <input type="text" id="user_code" placeholder="np. MA1995" maxlength="10">
+
                 <label>Płeć:</label>
                 <div class="radio-group">
                     <label><input type="radio" name="gender" value="kobieta"> Kobieta</label>
                     <label><input type="radio" name="gender" value="mężczyzna"> Mężczyzna</label>
                 </div>
+
                 <label>Wiek (w latach):</label>
                 <input type="number" id="age" min="1" max="120" placeholder="Wpisz wiek">
+
                 <label>Wykształcenie:</label>
                 <select id="education">
                     <option value="">— wybierz —</option>
@@ -44,6 +49,7 @@
                     <option value="zawodowe">zawodowe</option>
                     <option value="wyższe">wyższe</option>
                 </select>
+
                 <button onclick="startLoading()">Przejdź dalej</button>
             </div>
         </div>
@@ -61,12 +67,11 @@
     </div>
 
     <script>
-        // 1. TUTAJ WKLEJ SWÓJ URL Z GOOGLE APPS SCRIPT
-        const APP_URL = 'https://script.google.com/macros/s/AKfycbzqr2QYeJHXO5HLjFWTVgDoqcfJJQVARvu3yqAUKvSaZgEM0UxwqUlCfzvEEFQRZ8OU3A/exec';
+        const APP_URL = 'https://script.google.com/macros/s/AKfycbzvWl0jGtohIuLMUUiNaW9omrqMFMJviQPGognATWLiaS5Ek3raVRAlRiJrrrw11ZxTgQ/exec';
 
         let startTime = null;
         let payload = null;
-        let dataSent = false; // Flaga zapobiegająca dublowaniu rekordów
+        let dataSent = false;
 
         function show(id) {
             document.querySelectorAll('.container > div').forEach(div => div.style.display = 'none');
@@ -79,16 +84,20 @@
         }
 
         function startLoading() {
+            const userCode = document.getElementById('user_code').value.trim();
             const gender = document.querySelector('input[name="gender"]:checked');
             const age = document.getElementById('age').value;
             const education = document.getElementById('education').value;
 
+            // Walidacja
+            if (!userCode) { alert('Wpisz swój unikalny kod'); return; }
             if (!gender) { alert('Wybierz płeć'); return; }
             if (!age || age < 1) { alert('Podaj poprawny wiek'); return; }
             if (!education) { alert('Wybierz wykształcenie'); return; }
 
             startTime = Date.now();
             payload = {
+                user_code: userCode, // Dodane do danych wysyłanych
                 gender: gender.value,
                 age: parseInt(age),
                 education: education,
@@ -100,13 +109,11 @@
         }
 
         function sendFinalData() {
-            // Wyślij tylko jeśli test trwa i dane nie zostały jeszcze wysłane
             if (!payload || !startTime || dataSent) return;
 
             const finalTime = Math.floor((Date.now() - startTime) / 1000);
             payload.time_seconds = finalTime;
 
-            // Używamy Blob i navigator.sendBeacon dla maksymalnej niezawodności przy zamykaniu karty
             const blob = new Blob([JSON.stringify(payload)], { type: 'text/plain;charset=utf-8' });
             const success = navigator.sendBeacon(APP_URL, blob);
 
@@ -116,14 +123,12 @@
             }
         }
 
-        // Obsługa wyjścia ze strony (zamknięcie karty, zmiana aplikacji, minimalizacja)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 sendFinalData();
             }
         });
 
-        // Dodatkowe zabezpieczenie dla starszych przeglądarek lub specyficznych zachowań mobilnych
         window.addEventListener('pagehide', sendFinalData);
 
         window.onload = function() {
